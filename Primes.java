@@ -51,7 +51,6 @@ public class Primes {
 
         for (i = 0; i < 8; i++) {
             primeLists.add(new ArrayList<>());
-            //System.out.println("Start = " + (i * calcRange + 1) + "; End = " + (i * calcRange + calcRange));
             threadArray[i] = new CalcPrimesThread(i * calcRange + 1, i * calcRange + calcRange, primeLists.get(i), sumPrimesList);
         }
 
@@ -66,7 +65,6 @@ public class Primes {
 
         // Calculate Execution Time
         double elapsedSeconds = (endTime - startTime) / 1000.0; 
-        System.out.println(elapsedSeconds);
 
         // Calculate Total Number of Primes Found
         int totalPrimesFound = 0;
