@@ -39,7 +39,7 @@ public class Primes {
 
     public static void main(String[] args) {
         int i, j, calcRange;
-        List<List<Integer>>primeLists;
+        List<List<Integer>> primeLists;
         List<Long> sumPrimesList;
         CalcPrimesThread[] threadArray;
         FileWriter fileWriter;
