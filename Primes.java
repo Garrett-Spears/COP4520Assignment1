@@ -2,32 +2,31 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Primes {
-    private static boolean executeThreads(CalcPrimesThread[] threadArray) {
-        if (threadArray == null || threadArray.length != 8) {
+
+    private static boolean executeThreads(CalcPrimesThread[] threadArray, int numThreads) {
+        int i;
+
+        if (threadArray == null) {
             return false;
         }
 
-        threadArray[0].start();
-        threadArray[1].start();
-        threadArray[2].start();
-        threadArray[3].start();
-        threadArray[4].start();
-        threadArray[5].start();
-        threadArray[6].start();
-        threadArray[7].start();
+        for (i = 0; i < numThreads; i++) {
+            if (threadArray[i] != null) {
+                threadArray[i].start();
+            }
+        }
 
         try {
-            threadArray[0].join();
-            threadArray[1].join();
-            threadArray[2].join();
-            threadArray[3].join();
-            threadArray[4].join();
-            threadArray[5].join();
-            threadArray[6].join();
-            threadArray[7].join();
+            for (i = 0; i < numThreads; i++) {
+                if (threadArray[i] != null) {
+                    threadArray[i].join();
+                }
+            }
         }
         catch (InterruptedException e) {
             System.out.println("Error joining thread: " + e.toString());
@@ -38,25 +37,21 @@ public class Primes {
     }
 
     public static void main(String[] args) {
-        int i, j, calcRange;
-        List<List<Integer>> primeLists;
-        List<Long> sumPrimesList;
+        int i, maxNum, numThreads;
         CalcPrimesThread[] threadArray;
         FileWriter fileWriter;
 
-        primeLists = new ArrayList<>();
-        sumPrimesList = new ArrayList<>();
-        calcRange = (int) Math.pow(10, 8) / 8;
-        threadArray = new CalcPrimesThread[8];
+        maxNum = (int) Math.pow(10, 8);
+        numThreads = 8;
+        threadArray = new CalcPrimesThread[numThreads];
 
-        for (i = 0; i < 8; i++) {
-            primeLists.add(new ArrayList<>());
-            threadArray[i] = new CalcPrimesThread(i * calcRange + 1, i * calcRange + calcRange, primeLists.get(i), sumPrimesList);
+        for (i = 0; i < numThreads; i++) {
+            threadArray[i] = new CalcPrimesThread(maxNum);
         }
 
         long startTime = System.currentTimeMillis();
 
-        if (!executeThreads(threadArray)) {
+        if (!executeThreads(threadArray, numThreads)) {
             System.out.println("Failed to execute threads properly so execution of program will be terminated");
             return;
         }
@@ -64,29 +59,24 @@ public class Primes {
         long endTime = System.currentTimeMillis();
 
         // Calculate Execution Time
-        double elapsedSeconds = (endTime - startTime) / 1000.0; 
+        double elapsedSeconds = (endTime - startTime) / 1000.0;
 
-        // Calculate Total Number of Primes Found
-        int totalPrimesFound = 0;
-        for (List<Integer> primeList : primeLists) {
-            totalPrimesFound += primeList.size();
-        }
-
-        // Calculate Sum of All Primes Found
-        long sumOfAllPrimesFound = 0L;
-        for (long sum : sumPrimesList) {
-            sumOfAllPrimesFound += sum;
-        }
-
-        // Pick out Top Ten Maximum Primes Found
+        // Get Total Number of Primes Found
+        int totalPrimesFound = CalcPrimesThread.primesList.size();
+        
+        long sumOfAllPrimesFound = 0l;
         List<Integer> topTenPrimesFound = new ArrayList<>();
-        for (i = primeLists.size() - 1; topTenPrimesFound.size() < 10 && i >= 0; i--) {
-            List<Integer> currPrimeList = primeLists.get(i);
-            for (j = currPrimeList.size() - 1; topTenPrimesFound.size() < 10 && j >= 0; j--) {
-                topTenPrimesFound.add(currPrimeList.get(j));
-            }
+
+        // Iterate Through and Sum up All Prime Integers in List
+        for (int prime : CalcPrimesThread.primesList) {
+            sumOfAllPrimesFound += prime;
         }
-        Collections.reverse(topTenPrimesFound);
+
+        // Sort List of Primes then Get Last 10 Largest Primes in the Sorted List 
+        Collections.sort(CalcPrimesThread.primesList);
+        for (int j = Math.max(CalcPrimesThread.primesList.size() - 10, 0); j < CalcPrimesThread.primesList.size(); j++) {
+            topTenPrimesFound.add(CalcPrimesThread.primesList.get(j));
+        }
 
         try {
             fileWriter = new FileWriter("primes.txt");
@@ -105,13 +95,18 @@ public class Primes {
         catch (IOException e) {
             System.out.println("Error writing to file: " + e.toString());
         }
-    }
+     }
 }
 
 class CalcPrimesThread extends Thread {
-    private int start, end;
-    private List<Integer> primeList;
-    private List<Long> sumList;
+    private static AtomicInteger counter = new AtomicInteger(1);
+    public static List<Integer> primesList = Collections.synchronizedList(new ArrayList<>());
+
+    private int maxNum;
+
+    public CalcPrimesThread(int maxNum) {
+        this.maxNum = maxNum;
+    }
 
     private boolean isPrime(int num) {
         int i;
@@ -132,24 +127,15 @@ class CalcPrimesThread extends Thread {
         return true;
     }
 
-    public CalcPrimesThread(int start, int end, List<Integer> primeList, List<Long> sumList) {
-        this.start = start;
-        this.end = end;
-        this.primeList = primeList;
-        this.sumList = sumList;
-    }
-
     public void run() {
-        int i;
-        long sumPrimes = 0;
+        int current;
 
-        for (i = start; i <= end; i++) {
-            if (isPrime(i)) {
-                primeList.add(i);
-                sumPrimes += i;
+        while ((current = counter.getAndIncrement()) <= this.maxNum) {
+            if (isPrime(current)) {
+                synchronized(primesList) {
+                    primesList.add(current);
+                }
             }
         }
-
-        sumList.add(sumPrimes);
     }
 }
